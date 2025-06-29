@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Business Opportunity Identifier</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzxH+vSyHchPlus1AXA6GRg="
+     crossorigin=""/>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        #map {
+            height: 400px; /* Fixed height for the map */
+            width: 100%;
+            border-radius: 0.75rem; /* Rounded corners */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+            margin-bottom: 1.5rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #334155; /* Slate-700 */
+        }
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e1; /* Slate-300 */
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: #334155;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: #6366f1; /* Indigo-500 */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Focus ring */
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* Indigo-600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            display: block; /* Make button full width */
+            width: 100%;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca; /* Indigo-700 */
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* Gray-500 */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            display: inline-block;
+            margin-right: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563; /* Gray-700 */
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3b82f6; /* Blue */
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result-card {
+            background-color: #f8fafc; /* Blue-gray-50 */
+            border: 1px solid #e2e8f0; /* Slate-200 */
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .result-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e293b; /* Slate-800 */
+            margin-bottom: 0.75rem;
+        }
+        .result-heading {
+            font-weight: 600;
+            color: #334155;
+            margin-top: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .map-instructions {
+            background-color: #e0f2fe; /* Light blue */
+            border-left: 4px solid #2563eb; /* Blue-600 */
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            color: #1e40af; /* Blue-800 */
+        }
+        .generated-content-section {
+            margin-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1rem;
+        }
+        .generated-content-section ul {
+            list-style: none; /* Remove default bullet */
+            padding-left: 0;
+        }
+        .generated-content-section ul li:before {
+            content: '• '; /* Custom bullet */
+            color: #6366f1; /* Indigo-500 */
+        }
+        .generated-content-section h4 {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Local Business Opportunity Identifier</h1>
+
+        <div class="map-instructions">
+            <p class="font-semibold">Map Instructions:</p>
+            <p>1. Zoom and pan the map to your desired business area.</p>
+            <p>2. Click on the map to set a marker for your general area of interest. This will help the AI understand the location context.</p>
+            <p>3. Fill out the survey below to provide details about your profile.</p>
+        </div>
+
+        <div id="map"></div>
+        <p class="text-center text-gray-600 mb-6">Selected Location: <span id="selectedLocation" class="font-semibold">None</span></p>
+        <input type="hidden" id="latitudeInput">
+        <input type="hidden" id="longitudeInput">
+
+        <form id="businessIdeaForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="skills" class="form-label">Your Skills & Experience:</label>
+                <textarea id="skills" class="form-textarea" rows="4" placeholder="e.g., Marketing, accounting, culinary arts, customer service..." required></textarea>
+            </div>
+            <div>
+                <label for="interests" class="form-label">Your Interests & Passions:</label>
+                <textarea id="interests" class="form-textarea" rows="4" placeholder="e.g., Sustainable living, pet care, technology, fitness..." required></textarea>
+            </div>
+            <div>
+                <label for="capital" class="form-label">Available Capital (USD):</label>
+                <input type="number" id="capital" class="form-input" min="0" placeholder="e.g., 10000, 50000, 200000" required>
+            </div>
+            <div>
+                <label for="riskTolerance" class="form-label">Risk Tolerance:</label>
+                <select id="riskTolerance" class="form-select" required>
+                    <option value="">Select...</option>
+                    <option value="Low">Low (prefer stable, predictable businesses)</option>
+                    <option value="Medium">Medium (willing to take some calculated risks)</option>
+                    <option value="High">High (comfortable with significant risk for high reward)</option>
+                </select>
+            </div>
+            <div>
+                <label for="timeCommitment" class="form-label">Desired Time Commitment:</label>
+                <select id="timeCommitment" class="form-select" required>
+                    <option value="">Select...</option>
+                    <option value="Part-time">Part-time (few hours a day)</option>
+                    <option value="Full-time">Full-time (standard business hours)</option>
+                    <option value="Intensive">Intensive (long hours, highly demanding)</option>
+                </select>
+            </div>
+            <div>
+                <label for="industryPreference" class="form-label">Preferred Industry (Optional):</label>
+                <input type="text" id="industryPreference" class="form-input" placeholder="e.g., Food & Beverage, Tech, Retail, Services...">
+            </div>
+            <div class="md:col-span-2">
+                <button type="submit" class="btn-primary">Get Business Ideas</button>
+            </div>
+        </form>
+
+        <div class="loading-spinner" id="loadingSpinner"></div>
+
+        <div id="results" class="mt-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Recommended Business Ideas</h2>
+            <div id="ideasContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Business ideas will be injected here -->
+                <p id="noIdeasMessage" class="text-center text-gray-500 md:col-span-2">Select a location on the map and fill out the survey to get personalized business ideas.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/4K6pQvJ7BwWzdNYeNpSY="
+     crossorigin=""></script>
+    <script>
+        // Initialize Leaflet Map
+        const map = L.map('map').setView([20.5937, 78.9629], 5); // Centered on India
+
+        // OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        let marker; // To store the single marker
+
+        // Function to handle map click
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            // Remove existing marker if any
+            if (marker) {
+                map.removeLayer(marker);
+            }
+
+            // Add new marker
+            marker = L.marker([lat, lng]).addTo(map)
+                .bindPopup(`Selected: ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+                .openPopup();
+
+            // Update hidden input fields and display text
+            document.getElementById('latitudeInput').value = lat;
+            document.getElementById('longitudeInput').value = lng;
+            document.getElementById('selectedLocation').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        });
+
+        const form = document.getElementById('businessIdeaForm');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const ideasContainer = document.getElementById('ideasContainer');
+        const noIdeasMessage = document.getElementById('noIdeasMessage');
+
+        // Reusable function to make Gemini API calls
+        async function callGeminiAPI(prompt, schema) {
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: schema
+                }
+            };
+            const apiKey = ""; // Canvas will automatically provide it in runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                const jsonString = result.candidates[0].content.parts[0].text;
+                return JSON.parse(jsonString);
+            } else {
+                throw new Error("AI response structure unexpected or empty.");
+            }
+        }
+
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const lat = document.getElementById('latitudeInput').value;
+            const lng = document.getElementById('longitudeInput').value;
+
+            if (!lat || !lng) {
+                alert('Please select a location on the map first!');
+                return;
+            }
+
+            const skills = document.getElementById('skills').value;
+            const interests = document.getElementById('interests').value;
+            const capital = document.getElementById('capital').value;
+            const riskTolerance = document.getElementById('riskTolerance').value;
+            const timeCommitment = document.getElementById('timeCommitment').value;
+            const industryPreference = document.getElementById('industryPreference').value;
+
+            loadingSpinner.style.display = 'block'; // Show spinner
+            noIdeasMessage.style.display = 'none'; // Hide initial message
+            ideasContainer.innerHTML = ''; // Clear previous results
+
+            // Simulate fetching basic market context data (in a real app, this would be from a geospatial API)
+            const marketContext = {
+                location: `Latitude: ${lat}, Longitude: ${lng}`,
+                approxPopulationDensity: 'Medium to High', // Placeholder
+                dominantAgeGroup: 'Young Adults and Families', // Placeholder
+                averageIncomeLevel: 'Medium', // Placeholder
+                existingBusinesses: 'Several cafes, a few clothing stores, some convenience stores. Limited specialized services or unique dining options.', // Placeholder
+                infrastructure: 'Good road connectivity, some public transport, moderate pedestrian traffic.', // Placeholder
+                emergingLocalTrends: 'Growing interest in health & wellness, convenience, and unique local experiences.' // Placeholder
+            };
+
+            // Construct the prompt for the initial business ideas
+            const initialPrompt = `Given the following user profile and market context, suggest 3-5 innovative business ideas that are likely to succeed in the specified area. For each idea, provide a brief description, justify why it's a good fit for the area (citing market context), and list 2-3 potential challenges.
+
+User Profile:
+- Skills: ${skills}
+- Interests: ${interests}
+- Available Capital: $${capital}
+- Risk Tolerance: ${riskTolerance}
+- Time Commitment: ${timeCommitment}
+- Desired Industry (if any): ${industryPreference || 'Any'}. Prioritize ideas relevant to this if provided.
+
+Market Context for the selected area (approximate):
+- Location Coordinates: ${marketContext.location}
+- Approximate Population Density: ${marketContext.approxPopulationDensity}
+- Dominant Age Group: ${marketContext.dominantAgeGroup}
+- Average Income Level: ${marketContext.averageIncomeLevel}
+- Existing Businesses/Competition: ${marketContext.existingBusinesses}
+- Infrastructure: ${marketContext.infrastructure}
+- Emerging Local Trends: ${marketContext.emergingLocalTrends}
+
+Please format your response as a JSON array of objects, where each object represents a business idea and has the following keys: "businessName", "description", "whyGoodFit", "potentialChallenges".`;
+
+            const initialSchema = {
+                type: "ARRAY",
+                items: {
+                    type: "OBJECT",
+                    properties: {
+                        "businessName": { "type": "STRING" },
+                        "description": { "type": "STRING" },
+                        "whyGoodFit": { "type": "STRING" },
+                        "potentialChallenges": {
+                            "type": "ARRAY",
+                            "items": { "type": "STRING" }
+                        }
+                    },
+                    "propertyOrdering": ["businessName", "description", "whyGoodFit", "potentialChallenges"]
+                }
+            };
+
+            try {
+                const ideas = await callGeminiAPI(initialPrompt, initialSchema);
+
+                if (ideas.length === 0) {
+                    ideasContainer.innerHTML = '<p class="text-center text-gray-500 md:col-span-2">No specific ideas generated based on your criteria. Try adjusting your input.</p>';
+                } else {
+                    ideas.forEach((idea, index) => {
+                        const cardId = `idea-card-${index}`;
+                        const card = `
+                            <div class="result-card" id="${cardId}">
+                                <h3 class="result-title">${idea.businessName}</h3>
+                                <p><span class="result-heading">Description:</span> ${idea.description}</p>
+                                <p><span class="result-heading">Why it's a good fit:</span> ${idea.whyGoodFit}</p>
+                                <p><span class="result-heading">Potential Challenges:</span></p>
+                                <ul class="list-disc list-inside text-gray-700">
+                                    ${idea.potentialChallenges.map(challenge => `<li>${challenge}</li>`).join('')}
+                                </ul>
+                                <div class="flex flex-wrap mt-4">
+                                    <button class="btn-secondary" onclick="generateSwot('${idea.businessName}', '${idea.description.replace(/'/g, "\\'")}', '${cardId}')">Generate SWOT Analysis ✨</button>
+                                    <button class="btn-secondary" onclick="generateSlogans('${idea.businessName}', '${idea.description.replace(/'/g, "\\'")}', '${cardId}')">Generate Marketing Slogans ✨</button>
+                                </div>
+                                <div id="swot-section-${cardId}" class="generated-content-section hidden">
+                                    <h4 class="text-lg">SWOT Analysis:</h4>
+                                    <div class="loading-spinner small-spinner" id="swot-spinner-${cardId}" style="display:none;"></div>
+                                    <div id="swot-content-${cardId}"></div>
+                                </div>
+                                <div id="slogans-section-${cardId}" class="generated-content-section hidden">
+                                    <h4 class="text-lg">Marketing Slogans:</h4>
+                                    <div class="loading-spinner small-spinner" id="slogans-spinner-${cardId}" style="display:none;"></div>
+                                    <div id="slogans-content-${cardId}"></div>
+                                </div>
+                            </div>
+                        `;
+                        ideasContainer.innerHTML += card;
+                    });
+                }
+
+            } catch (error) {
+                ideasContainer.innerHTML = '<p class="text-center text-red-500 md:col-span-2">An error occurred while fetching initial ideas. Please check your network connection or try again later.</p>';
+                console.error("Fetch error for initial ideas:", error);
+            } finally {
+                loadingSpinner.style.display = 'none'; // Hide spinner
+            }
+        });
+
+        // Function to generate SWOT analysis
+        async function generateSwot(businessName, businessDescription, cardId) {
+            const swotSection = document.getElementById(`swot-section-${cardId}`);
+            const swotSpinner = document.getElementById(`swot-spinner-${cardId}`);
+            const swotContent = document.getElementById(`swot-content-${cardId}`);
+
+            swotSection.classList.remove('hidden');
+            swotSpinner.style.display = 'block';
+            swotContent.innerHTML = ''; // Clear previous SWOT
+
+            const prompt = `Perform a SWOT analysis for the business idea: "${businessName} - ${businessDescription}".
+            Provide Strengths, Weaknesses, Opportunities, and Threats relevant to this business.
+            Please format your response as a JSON object with keys: "strengths", "weaknesses", "opportunities", "threats", where each value is an array of strings.`;
+
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    "strengths": { "type": "ARRAY", "items": { "type": "STRING" } },
+                    "weaknesses": { "type": "ARRAY", "items": { "type": "STRING" } },
+                    "opportunities": { "type": "ARRAY", "items": { "type": "STRING" } },
+                    "threats": { "type": "ARRAY", "items": { "type": "STRING" } }
+                },
+                "propertyOrdering": ["strengths", "weaknesses", "opportunities", "threats"]
+            };
+
+            try {
+                const swot = await callGeminiAPI(prompt, schema);
+                let swotHtml = '';
+                for (const key in swot) {
+                    if (swot.hasOwnProperty(key)) {
+                        swotHtml += `<h5 class="font-semibold text-gray-700 mt-2">${key.charAt(0).toUpperCase() + key.slice(1)}:</h5>`;
+                        swotHtml += `<ul class="list-disc list-inside text-gray-600">`;
+                        swot[key].forEach(item => {
+                            swotHtml += `<li>${item}</li>`;
+                        });
+                        swotHtml += `</ul>`;
+                    }
+                }
+                swotContent.innerHTML = swotHtml;
+            } catch (error) {
+                swotContent.innerHTML = '<p class="text-red-500">Error generating SWOT analysis. Please try again.</p>';
+                console.error("Error generating SWOT:", error);
+            } finally {
+                swotSpinner.style.display = 'none';
+            }
+        }
+
+        // Function to generate marketing slogans
+        async function generateSlogans(businessName, businessDescription, cardId) {
+            const slogansSection = document.getElementById(`slogans-section-${cardId}`);
+            const slogansSpinner = document.getElementById(`slogans-spinner-${cardId}`);
+            const slogansContent = document.getElementById(`slogans-content-${cardId}`);
+
+            slogansSection.classList.remove('hidden');
+            slogansSpinner.style.display = 'block';
+            slogansContent.innerHTML = ''; // Clear previous slogans
+
+            const prompt = `Generate 5-7 catchy marketing slogans for the business idea: "${businessName} - ${businessDescription}".
+            Please format your response as a JSON array of strings, where each string is a slogan.`;
+
+            const schema = {
+                type: "ARRAY",
+                items: { "type": "STRING" }
+            };
+
+            try {
+                const slogans = await callGeminiAPI(prompt, schema);
+                let slogansHtml = '<ul class="list-disc list-inside text-gray-600">';
+                slogans.forEach(slogan => {
+                    slogansHtml += `<li>"${slogan}"</li>`;
+                });
+                slogansHtml += '</ul>';
+                slogansContent.innerHTML = slogansHtml;
+            } catch (error) {
+                slogansContent.innerHTML = '<p class="text-red-500">Error generating marketing slogans. Please try again.</p>';
+                console.error("Error generating slogans:", error);
+            } finally {
+                slogansSpinner.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
